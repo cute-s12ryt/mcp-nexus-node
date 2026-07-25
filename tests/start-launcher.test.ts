@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -113,7 +114,7 @@ describe("Pterodactyl startup launcher", () => {
       exports: { ".": "./dist/loader.mjs" },
     }), "utf8");
     await writeFile(join(packageDirectory, "dist", "loader.mjs"), "", "utf8");
-    expect(resolveSourceLoader(directory)).toBe(new URL(`file:///${join(packageDirectory, "dist", "loader.mjs").replaceAll("\\", "/")}`).href);
+    expect(resolveSourceLoader(directory)).toBe(pathToFileURL(join(packageDirectory, "dist", "loader.mjs")).href);
   });
 
   it("maps Pterodactyl allocation variables without overriding explicit values", () => {

@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,6 +15,7 @@ const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 describe("web entrypoint process lifecycle", () => {
   it("starts source code outside the project cwd and closes cleanly on SIGTERM", async () => {
     const workingDirectory = await mkdtemp(join(tmpdir(), "mcp-nexus-process-"));
+    await writeFile(join(workingDirectory, ".env"), "WEB_LOGIN_PATH=/integration/login\n", "utf8");
     const port = await findAvailablePort();
     const environment = {
       ...process.env,
@@ -22,11 +23,12 @@ describe("web entrypoint process lifecycle", () => {
       PORT: String(port),
       MCP_NEXUS_DATA: join(workingDirectory, "state.json"),
     };
-    const settings = loadStartupConfig({ projectRoot, environment: { ...environment } });
+    delete environment.WEB_LOGIN_PATH;
+    const settings = loadStartupConfig({ projectRoot: workingDirectory, environment: { ...environment } });
     const webServerUrl = pathToFileURL(join(projectRoot, "src", "web-server.ts")).href;
     const harness = [
       `const { runWebServerCli } = await import(${JSON.stringify(webServerUrl)});`,
-      `await runWebServerCli({ projectRoot: ${JSON.stringify(projectRoot)} });`,
+      `await runWebServerCli({ projectRoot: ${JSON.stringify(workingDirectory)} });`,
       "process.on('message', (message) => {",
       "  if (message === 'SIGTERM') {",
       "    process.emit('SIGTERM');",
