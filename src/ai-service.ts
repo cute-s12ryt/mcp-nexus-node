@@ -45,6 +45,7 @@ const responseSchema = z.object({
 });
 
 const diagnosticArgumentsSchema = z.object({ message: z.string().min(1).max(1_000) });
+const DIAGNOSTIC_MAX_OUTPUT_TOKENS = 256;
 
 type ChatMessage = Record<string, unknown> & { role: string };
 type CompletionResponse = z.infer<typeof responseSchema>;
@@ -98,6 +99,7 @@ export class AiSearchService {
     private readonly maxResponseBytes = 1024 * 1024,
     private readonly fetcher?: typeof fetch,
     private readonly webSearch = new SearxngSearchService(maxResponseBytes, fetcher ?? fetch),
+    private readonly requestTimeoutMs = 120_000,
   ) {}
 
   async search(query: string): Promise<AgentSearchResult> {
@@ -315,7 +317,10 @@ export class AiSearchService {
   private async performDiagnostic(overrides: Partial<AiSettings>): Promise<AiProviderDiagnostic> {
     const state = await this.store.read();
     const ai = { ...state.ai, ...overrides, apiKey: overrides.apiKey || state.ai.apiKey };
-    const orchestration = state.searchOrchestration;
+    const orchestration = {
+      ...state.searchOrchestration,
+      maxOutputTokens: Math.min(state.searchOrchestration.maxOutputTokens, DIAGNOSTIC_MAX_OUTPUT_TOKENS),
+    };
     assertConfigured(ai);
     const basic: AiDiagnosticStep = { success: false };
     const toolCalling: AiProviderDiagnostic["toolCalling"] = { success: false };
@@ -389,7 +394,11 @@ export class AiSearchService {
     const baseUrl = await assertSafeRemoteUrl(options.settings.baseUrl);
     const endpoint = new URL(`${baseUrl.pathname.replace(/\/$/, "")}/chat/completions`, baseUrl);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45_000);
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, this.requestTimeoutMs);
     const sampling = options.orchestration.samplingMode === "temperature"
       ? { temperature: options.orchestration.temperature }
       : { top_p: options.orchestration.topP };
@@ -423,7 +432,7 @@ export class AiSearchService {
       }
     } catch (error) {
       if (error instanceof AiProviderError) throw error;
-      if (controller.signal.aborted) throw new AiProviderError("AI Provider 請求逾時或回應超過大小上限");
+      if (timedOut) throw new AiProviderError(`AI Provider 請求超過 ${this.requestTimeoutMs} ms，已中止`);
       throw error;
     } finally {
       clearTimeout(timeout);

@@ -134,6 +134,7 @@ describe("AI Agent orchestration", () => {
       },
     });
     expect(bodies).toHaveLength(3);
+    expect(bodies.every((body) => body.max_tokens === 256)).toBe(true);
     expect(bodies[0]).not.toHaveProperty("tools");
     expect(bodies[1]).toMatchObject({
       tool_choice: { type: "function", function: { name: "diagnostic_echo" } },
@@ -143,6 +144,21 @@ describe("AI Agent orchestration", () => {
     expect(bodies[2]?.messages).toEqual(expect.arrayContaining([
       expect.objectContaining({ role: "tool", tool_call_id: "call-1" }),
     ]));
+  });
+
+  it("reports provider timeouts separately from response-size failures", async () => {
+    process.env.ALLOW_PRIVATE_UPSTREAMS = "true";
+    const service = createService((_, init) => new Promise<Response>((_, reject) => {
+      const signal = init?.signal;
+      if (!signal) return reject(new Error("missing abort signal"));
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }), undefined, 5);
+
+    const result = await service.testProvider();
+
+    expect(result.basic.rawError).toBe("AI Provider 請求超過 5 ms，已中止");
+    expect(result.toolCalling.rawError).toBe("AI Provider 請求超過 5 ms，已中止");
+    expect(JSON.stringify(result)).not.toContain("回應超過大小上限");
   });
 
   it("keeps tool-call content visible when diagnostic arguments are invalid", async () => {
@@ -171,6 +187,7 @@ describe("AI Agent orchestration", () => {
 function createService(
   fetcher: typeof fetch,
   configure?: (state: AppState) => void,
+  requestTimeoutMs = 120_000,
 ): AiSearchService {
   const state = defaultAppState();
   state.ai = {
@@ -184,7 +201,7 @@ function createService(
   const webSearch = new SearxngSearchService(1024 * 1024, () => Promise.resolve(Response.json({
     results: [{ title: "Fixture evidence", url: "https://example.com/evidence", content: "Current evidence." }],
   })));
-  return new AiSearchService(new InMemoryStateStore(state), 1024 * 1024, fetcher, webSearch);
+  return new AiSearchService(new InMemoryStateStore(state), 1024 * 1024, fetcher, webSearch, requestTimeoutMs);
 }
 
 function completion(content: string, usage?: Record<string, number>): Response {

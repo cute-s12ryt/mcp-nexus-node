@@ -87,7 +87,7 @@ export function createWebRuntime(store: StateStore, options: WebAppOptions = {})
   const loginGuard = new LoginGuard();
   const mcpSessions = new McpSessionRegistry<StreamableHTTPServerTransport>(limits.maxMcpSessions, limits.mcpSessionIdleMs);
   const searxngSearch = new SearxngSearchService(limits.maxAiResponseBytes);
-  const aiSearch = new AiSearchService(store, limits.maxAiResponseBytes, undefined, searxngSearch);
+const aiSearch = new AiSearchService(store, limits.maxAiResponseBytes, undefined, searxngSearch, limits.aiRequestTimeoutMs);
   const gatewayTokens = new GatewayTokenService(store);
   let upstreamsPromise: Promise<UpstreamService> | undefined;
   const getUpstreams = () => upstreamsPromise ??= import("./upstream-service.js")
