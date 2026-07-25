@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#080b0f" />
+    <title>MCP Nexus</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/_mcp-nexus/assets/styles.css" />
+    <script src="/_mcp-nexus/assets/app.js" defer></script>
+  </head>
+  <body>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <main id="auth-view" class="auth-shell" hidden>
+      <section class="auth-brand" aria-labelledby="auth-title">
+        <p class="brand-mark">MCP NEXUS</p>
+        <h1 id="auth-title">控制你的 AI 與 MCP 連線</h1>
+        <p>在單一工作區管理搜尋模型、遠端伺服器與工具轉出端點。</p>
+        <div class="signal-line" aria-hidden="true"><span></span><span></span><span></span></div>
+      </section>
+
+      <section class="auth-panel">
+        <div>
+          <p class="eyebrow" id="auth-eyebrow">管理員登入</p>
+          <h2 id="auth-heading">返回工作區</h2>
+        </div>
+        <form id="auth-form">
+          <label for="username">管理員帳號</label>
+          <input id="username" name="username" autocomplete="username" minlength="3" maxlength="64" required />
+          <label for="password">密碼</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" minlength="10" maxlength="200" required />
+          <p id="setup-note" class="field-note" hidden>這是第一次啟動。送出後將建立唯一管理員並關閉註冊入口。</p>
+          <button id="auth-submit" class="button primary full" type="submit">登入</button>
+          <p id="auth-error" class="form-error" role="alert" hidden></p>
+        </form>
+      </section>
+    </main>
+
+    <div id="app-view" class="app-shell" hidden>
+      <aside class="sidebar">
+        <div class="brand-lockup">
+          <span class="brand-pulse" aria-hidden="true"></span>
+          <div><strong>MCP NEXUS</strong><small>CONTROL PLANE</small></div>
+        </div>
+        <nav class="nav" aria-label="主要導覽">
+          <button class="nav-item active" type="button" data-view="search" aria-current="page">AI 搜尋</button>
+          <button class="nav-item" type="button" data-view="orchestration">搜尋調度</button>
+          <button class="nav-item" type="button" data-view="servers">MCP 伺服器</button>
+          <button class="nav-item" type="button" data-view="token">Gateway Token</button>
+          <button class="nav-item" type="button" data-view="requests">請求紀錄</button>
+          <button class="nav-item" type="button" data-view="settings">設定</button>
+        </nav>
+        <div class="sidebar-foot">
+          <span class="status-dot"></span><span>Gateway online</span>
+          <button id="logout-button" class="text-button" type="button">登出</button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="section-eyebrow">AI SEARCH</p>
+            <h1 id="section-title">搜尋工作台</h1>
+          </div>
+          <div class="identity"><span id="identity-name"></span><span class="avatar" aria-hidden="true">A</span></div>
+        </header>
+
+        <section id="search-section" class="view-section">
+          <form id="search-form" class="search-console">
+            <label for="search-query">搜尋問題</label>
+            <textarea id="search-query" name="query" rows="4" maxlength="4000" placeholder="輸入要交給 Agent 團隊分析的問題" required></textarea>
+            <div class="action-row">
+              <span id="search-status" class="muted">等待查詢</span>
+              <button id="search-button" class="button primary" type="submit">執行搜尋</button>
+            </div>
+          </form>
+          <section class="result-panel" aria-labelledby="result-title">
+            <div class="panel-heading">
+              <div><p class="eyebrow">RESPONSE</p><h2 id="result-title">搜尋結果</h2></div>
+              <div class="tag-group"><span id="result-mode" class="tag">尚未執行</span><span id="result-model" class="tag">尚未執行</span></div>
+            </div>
+            <div id="search-result" class="result-content empty">結果將顯示在這裡。</div>
+            <div id="search-usage" class="result-usage muted" hidden></div>
+            <section id="web-evidence" class="web-evidence" aria-label="網路搜尋證據" hidden></section>
+            <div id="agent-stages" class="agent-stages" hidden></div>
+          </section>
+        </section>
+
+        <section id="orchestration-section" class="view-section" hidden>
+          <form id="orchestration-form" class="form-panel orchestration-form">
+            <div class="panel-heading">
+              <div><p class="eyebrow">AGENT ORCHESTRATION</p><h2>搜尋調度</h2></div>
+              <span id="orchestration-mode-status" class="tag">高精度</span>
+            </div>
+            <p class="muted">調度只呼叫已設定的 OpenAI 相容 API，不會呼叫遠端 MCP 工具。</p>
+            <div class="form-grid orchestration-controls">
+              <div>
+                <label for="orchestration-mode">調度模式</label>
+                <select id="orchestration-mode" name="mode">
+                  <option value="precision">高精度：規劃 → 分析 → 審核 → 彙整</option>
+                  <option value="parallel">並發：5 個分析 Agent → 統整</option>
+                  <option value="custom">自訂並發 → 統整</option>
+                </select>
+              </div>
+              <div>
+                <label for="custom-concurrency">自訂 Agent 並發數</label>
+                <input id="custom-concurrency" name="customConcurrency" type="number" min="1" max="8" step="1" />
+              </div>
+              <div>
+                <label for="history-char-limit">送入各 Agent 的歷史內容上限</label>
+                <input id="history-char-limit" name="historyCharLimit" type="number" min="1000" max="48000" step="100" />
+                <p class="field-note">單位為字元；這不是模型本身的 Context Window。</p>
+              </div>
+              <div>
+                <label for="max-output-tokens">單次最大輸出 Token</label>
+                <input id="max-output-tokens" name="maxOutputTokens" type="number" min="128" max="4096" step="1" />
+              </div>
+              <div>
+                <label for="sampling-mode">取樣控制</label>
+                <select id="sampling-mode" name="samplingMode">
+                  <option value="temperature">Temperature</option>
+                  <option value="top_p">Top P</option>
+                </select>
+              </div>
+              <div id="temperature-field">
+                <label for="orchestration-temperature">Temperature</label>
+                <input id="orchestration-temperature" name="temperature" type="number" min="0" max="2" step="0.05" />
+              </div>
+              <div id="top-p-field">
+                <label for="orchestration-top-p">Top P</label>
+                <input id="orchestration-top-p" name="topP" type="number" min="0.05" max="1" step="0.05" />
+              </div>
+            </div>
+            <section class="web-search-settings" aria-labelledby="web-search-title">
+              <div class="panel-heading">
+                <div><p class="eyebrow">SELF-HOSTED SEARCH</p><h3 id="web-search-title">SearXNG 搜尋來源</h3></div>
+                <span id="web-search-status" class="tag">尚未設定</span>
+              </div>
+              <p class="muted">Google、Bing、DuckDuckGo 與 Startpage 都由你的自架 SearXNG 代為查詢；「SearXNG」會使用該實例的預設聚合引擎。</p>
+              <div class="form-grid orchestration-controls">
+                <div class="span-two">
+                  <label for="searxng-endpoint">SearXNG 服務網址</label>
+                  <input id="searxng-endpoint" name="searxngEndpoint" type="url" placeholder="https://search.example.com" required />
+                  <p class="field-note">必須在 SearXNG 的 <code>search.formats</code> 啟用 <code>json</code>。</p>
+                </div>
+                <div>
+                  <label for="web-search-mode">搜尋模式</label>
+                  <select id="web-search-mode" name="webSearchMode">
+                    <option value="single">單一來源</option>
+                    <option value="parallel">並行來源</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="results-per-source">每個來源結果數</label>
+                  <input id="results-per-source" name="resultsPerSource" type="number" min="1" max="10" step="1" />
+                </div>
+                <div>
+                  <label for="search-language">搜尋語言</label>
+                  <input id="search-language" name="language" maxlength="20" placeholder="all 或 zh-TW" />
+                </div>
+                <div>
+                  <label for="safe-search">安全搜尋</label>
+                  <select id="safe-search" name="safeSearch">
+                    <option value="0">關閉</option>
+                    <option value="1">中等</option>
+                    <option value="2">嚴格</option>
+                  </select>
+                </div>
+              </div>
+              <fieldset class="source-selector">
+                <legend>搜尋來源</legend>
+                <label><input type="checkbox" value="google" data-search-source />Google</label>
+                <label><input type="checkbox" value="bing" data-search-source />Bing</label>
+                <label><input type="checkbox" value="duckduckgo" data-search-source />DuckDuckGo</label>
+                <label><input type="checkbox" value="startpage" data-search-source />Startpage</label>
+                <label><input type="checkbox" value="searxng" data-search-source />SearXNG</label>
+              </fieldset>
+              <div class="action-row web-search-actions">
+                <span id="web-search-test-result" class="muted">尚未測試</span>
+                <button id="test-web-search" class="button secondary" type="button">測試搜尋來源</button>
+              </div>
+            </section>
+            <div class="prompt-grid">
+              <div><label for="planner-prompt">規劃 Agent Prompt</label><textarea id="planner-prompt" name="plannerPrompt" rows="5" maxlength="4000" required></textarea></div>
+              <div><label for="researcher-prompt">搜尋／分析 Agent Prompt</label><textarea id="researcher-prompt" name="researcherPrompt" rows="5" maxlength="4000" required></textarea></div>
+              <div><label for="reviewer-prompt">審核 Agent Prompt</label><textarea id="reviewer-prompt" name="reviewerPrompt" rows="5" maxlength="4000" required></textarea></div>
+              <div><label for="synthesizer-prompt">彙整 Agent Prompt</label><textarea id="synthesizer-prompt" name="synthesizerPrompt" rows="5" maxlength="4000" required></textarea></div>
+            </div>
+            <div class="action-row"><span id="orchestration-error" class="form-error" role="alert"></span><button class="button primary" type="submit">儲存調度設定</button></div>
+          </form>
+        </section>
+
+        <section id="servers-section" class="view-section" hidden>
+          <div class="section-toolbar">
+            <div><h2>遠端 MCP</h2><p class="muted">管理聚合來源與單伺服器轉出端點。</p></div>
+            <button id="open-server-form" class="button primary" type="button">新增伺服器</button>
+          </div>
+
+          <form id="server-form" class="form-panel" hidden>
+            <div class="panel-heading"><div><p class="eyebrow">NEW UPSTREAM</p><h2>連接遠端 MCP</h2></div><button id="close-server-form" class="text-button" type="button">取消</button></div>
+            <div class="form-grid">
+              <div><label for="server-name">顯示名稱</label><input id="server-name" name="name" maxlength="100" required /></div>
+            <div><label for="server-alias">Alias</label><input id="server-alias" name="alias" pattern="[A-Za-z0-9_\-]{1,40}" maxlength="40" required /></div>
+              <div class="span-two"><label for="server-endpoint">MCP 服務網址</label><input id="server-endpoint" name="endpoint" type="url" placeholder="https://mcp.example.com/mcp" required /></div>
+              <section class="span-two auth-parameters" aria-labelledby="auth-parameters-title">
+                <div class="auth-parameters-heading">
+                  <div>
+                    <h3 id="auth-parameters-title">認證參數 <span class="muted">（選填）</span></h3>
+                    <p class="field-note">通常使用 HTTP Header；只有 MCP 服務文件明確要求時才選 URL Query。Bearer Token 可填成 Header：<code>Authorization</code> / <code>Bearer ...</code>。</p>
+                  </div>
+                  <button id="add-auth-parameter" class="button secondary" type="button">新增參數</button>
+                </div>
+                <div id="auth-parameter-list" class="auth-parameter-list"></div>
+              </section>
+            </div>
+            <div class="action-row"><span id="server-form-error" class="form-error" role="alert"></span><button class="button primary" type="submit">儲存連線</button></div>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>伺服器</th><th>Alias</th><th>MCP 服務網址</th><th>認證</th><th>Gateway 轉出網址</th><th>狀態</th><th><span class="sr-only">操作</span></th></tr></thead>
+              <tbody id="server-list"></tbody>
+            </table>
+            <p id="server-empty" class="empty-state">尚未連接遠端 MCP 伺服器。</p>
+          </div>
+        </section>
+
+        <section id="settings-section" class="view-section" hidden>
+          <div class="settings-layout">
+            <form id="ai-settings-form" class="form-panel">
+              <div class="panel-heading"><div><p class="eyebrow">OPENAI COMPATIBLE</p><h2>AI Provider</h2></div><span id="key-status" class="tag">未設定</span></div>
+              <label for="ai-base-url">Base URL</label>
+              <input id="ai-base-url" name="baseUrl" type="url" required />
+              <label for="ai-model">模型</label>
+              <input id="ai-model" name="model" required maxlength="200" />
+              <label for="ai-api-key">API Key</label>
+              <input id="ai-api-key" name="apiKey" type="password" autocomplete="off" placeholder="保留空白即可沿用目前金鑰" />
+              <label for="ai-system-prompt">System prompt</label>
+              <textarea id="ai-system-prompt" name="systemPrompt" rows="5" maxlength="4000"></textarea>
+              <div class="action-row">
+                <span id="settings-error" class="form-error" role="alert"></span>
+                <div class="button-group"><button id="test-ai-provider" class="button secondary" type="button">測試 API</button><button class="button primary" type="submit">儲存設定</button></div>
+              </div>
+              <section id="ai-diagnostic" class="diagnostic-output" aria-live="polite" hidden>
+                <div class="diagnostic-heading"><h3>API 診斷結果</h3><span id="diagnostic-overall" class="tag">尚未測試</span></div>
+                <div id="diagnostic-basic"></div>
+                <div id="diagnostic-tools"></div>
+              </section>
+            </form>
+
+            <div class="settings-side">
+              <section class="form-panel token-panel" aria-labelledby="web-path-title">
+                <div><p class="eyebrow">CONTROL PLANE URL</p><h2 id="web-path-title">Web 控制台路徑</h2></div>
+                <p class="muted">刷新後目前的控制台網址會立即失效，瀏覽器將切換至新的 UUID 路徑。</p>
+                <code id="web-path-value" class="path-value"></code>
+                <button id="rotate-web-path" class="button danger" type="button">刷新網頁路徑 UUID</button>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section id="token-section" class="view-section" hidden>
+          <div class="section-toolbar">
+            <div><h2>Gateway Token</h2><p class="muted">為不同 MCP Client 建立獨立憑證與使用統計。</p></div>
+            <button id="open-token-form" class="button primary" type="button">新增 Token</button>
+          </div>
+          <form id="token-form" class="form-panel token-create-form" hidden>
+            <div class="panel-heading"><div><p class="eyebrow">NEW CREDENTIAL</p><h2>建立 Gateway Token</h2></div><button id="close-token-form" class="text-button" type="button">取消</button></div>
+            <label for="token-name">Token 名稱</label>
+            <input id="token-name" name="name" maxlength="80" placeholder="例如 Claude Desktop" required />
+            <p class="field-note">Token 全文只會在建立後顯示一次；清單僅保留末五碼供辨識。</p>
+            <div class="action-row"><span id="token-form-error" class="form-error" role="alert"></span><button class="button primary" type="submit">建立 Token</button></div>
+          </form>
+          <div class="table-wrap">
+            <table class="token-table">
+              <thead><tr><th>名稱</th><th>末五碼</th><th>全部請求</th><th>成功 tools/call</th><th>最後使用</th><th><span class="sr-only">操作</span></th></tr></thead>
+              <tbody id="token-list"></tbody>
+            </table>
+            <p id="token-empty" class="empty-state">尚未建立 Gateway Token。</p>
+          </div>
+        </section>
+
+        <section id="requests-section" class="view-section" hidden>
+          <div class="section-toolbar">
+            <div><h2>請求紀錄</h2><p class="muted">顯示最新 200 筆已通過 Token 驗證的 MCP 請求，不保存請求內容。</p></div>
+            <button id="refresh-request-logs" class="button secondary" type="button">重新整理</button>
+          </div>
+          <div class="table-wrap">
+            <table class="request-log-table">
+              <thead><tr><th>時間</th><th>Token</th><th>端點</th><th>MCP 方法</th><th>HTTP 結果</th></tr></thead>
+              <tbody id="request-log-list"></tbody>
+            </table>
+            <p id="request-log-empty" class="empty-state">尚無 MCP 請求紀錄。</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="token-dialog" class="dialog-backdrop" hidden>
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="token-dialog-title">
+        <p class="eyebrow">TOKEN GENERATED</p>
+        <h2 id="token-dialog-title">立即保存 Gateway Token</h2>
+        <p class="muted">基於安全性，關閉後無法再次查看；需要新憑證時請另外建立 Token。</p>
+        <div class="token-value"><code id="token-value"></code></div>
+        <div class="dialog-actions"><button id="copy-token" class="button secondary" type="button">複製</button><button id="close-token-dialog" class="button primary" type="button">我已保存</button></div>
+      </section>
+    </div>
+  </body>
+</html>
