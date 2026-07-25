@@ -19,6 +19,7 @@ describe("memory guards", () => {
       mcpSessionIdleMs: 900_000,
       maxUpstreamTools: 256,
       maxAiResponseBytes: 1_048_576,
+      aiRequestTimeoutMs: 120_000,
     });
     expect(readRuntimeLimits({ MCP_MAX_SESSIONS: "2", MCP_MAX_TOOLS: "64" })).toMatchObject({
       maxMcpSessions: 2,
@@ -26,6 +27,7 @@ describe("memory guards", () => {
     });
     expect(() => readRuntimeLimits({ MCP_MAX_SESSIONS: "0" })).toThrow("MCP_MAX_SESSIONS");
     expect(() => readRuntimeLimits({ MCP_MAX_AI_RESPONSE_BYTES: "unbounded" })).toThrow("MCP_MAX_AI_RESPONSE_BYTES");
+    expect(() => readRuntimeLimits({ MCP_AI_TIMEOUT_MS: "9999" })).toThrow("MCP_AI_TIMEOUT_MS");
   });
 
   it("caps MCP sessions, isolates scopes, and closes expired resources", async () => {

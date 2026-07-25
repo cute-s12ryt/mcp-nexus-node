@@ -3,6 +3,7 @@ export interface RuntimeLimits {
   mcpSessionIdleMs: number;
   maxUpstreamTools: number;
   maxAiResponseBytes: number;
+  aiRequestTimeoutMs: number;
 }
 
 export function readRuntimeLimits(environment: NodeJS.ProcessEnv = process.env): RuntimeLimits {
@@ -11,6 +12,7 @@ export function readRuntimeLimits(environment: NodeJS.ProcessEnv = process.env):
     mcpSessionIdleMs: readInteger(environment, "MCP_SESSION_IDLE_MS", 15 * 60_000, 30_000, 24 * 60 * 60_000),
     maxUpstreamTools: readInteger(environment, "MCP_MAX_TOOLS", 256, 1, 2_048),
     maxAiResponseBytes: readInteger(environment, "MCP_MAX_AI_RESPONSE_BYTES", 1024 * 1024, 16 * 1024, 8 * 1024 * 1024),
+    aiRequestTimeoutMs: readInteger(environment, "MCP_AI_TIMEOUT_MS", 120_000, 10_000, 300_000),
   };
 }
 
