@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { upstreamSchema } from "../src/app-state.js";
-import { assertSafeRemoteUrl } from "../src/network-policy.js";
+import { assertSafeRemoteUrl, resolveSafeRemoteTarget } from "../src/network-policy.js";
 import { JsonStateStore } from "../src/state-store.js";
 import { applyUpstreamAuthentication, redactUpstreamAuthentication } from "../src/upstream-auth.js";
 import { normalizeLoginPath } from "../src/web-app.js";
@@ -61,7 +61,12 @@ describe("state and outbound network boundaries", () => {
     expect((await store.read()).ai.systemPrompt).toBe("ABCDEFGHIJKLMNOPQRSTUVWXY");
   });
 
-  it.each(["http://127.0.0.1:3000/mcp", "https://10.0.0.1/mcp", "https://[::1]/mcp"])(
+  it.each([
+    "http://127.0.0.1:3000/mcp",
+    "https://10.0.0.1/mcp",
+    "https://[::1]/mcp",
+    "https://[::ffff:127.0.0.1]/mcp",
+  ])(
     "blocks private endpoint %s",
     async (endpoint) => {
       await expect(assertSafeRemoteUrl(endpoint)).rejects.toThrow();
@@ -71,6 +76,19 @@ describe("state and outbound network boundaries", () => {
   it("allows explicit private development endpoints", async () => {
     process.env.ALLOW_PRIVATE_UPSTREAMS = "true";
     await expect(assertSafeRemoteUrl("http://127.0.0.1:3000/mcp")).resolves.toBeInstanceOf(URL);
+  });
+
+  it.each([
+    "https://216.24.57.15/mcp",
+    "https://[2606:4700::6810:85e5]/mcp",
+  ])("allows public endpoint %s", async (endpoint) => {
+    await expect(assertSafeRemoteUrl(endpoint)).resolves.toBeInstanceOf(URL);
+  });
+
+  it("normalizes a public IPv6 literal before pinning its address", async () => {
+    await expect(resolveSafeRemoteTarget("https://[2606:4700::6810:85e5]/mcp")).resolves.toMatchObject({
+      addresses: [{ address: "2606:4700::6810:85e5", family: 6 }],
+    });
   });
 
   it("accepts nested login paths and rejects unsafe or reserved paths", () => {
