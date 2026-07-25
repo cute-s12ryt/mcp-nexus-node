@@ -214,6 +214,7 @@ Google、Bing、DuckDuckGo 與 Startpage 會設定對應的 SearXNG `engines`。
 | `MCP_SESSION_IDLE_MS` | `900000` | 閒置逾時；允許範圍 30000-86400000 毫秒 |
 | `MCP_MAX_TOOLS` | `256` | 上游工具收集上限；允許範圍 1-2048 |
 | `MCP_MAX_AI_RESPONSE_BYTES` | `1048576` | OpenAI 相容回應上限；允許範圍 16384-8388608 bytes |
+| `MCP_AI_TIMEOUT_MS` | `120000` | 每筆 OpenAI 相容請求的逾時；允許範圍 10000-300000 毫秒 |
 
 Shell 與面板環境變數的優先序高於 `.env`。無論呼叫端目前目錄為何，Web 進入點都從專案根目錄載入 `.env`。`WEB_LOGIN_PATH` 不可使用保留的 API、MCP 或靜態資產前綴。
 

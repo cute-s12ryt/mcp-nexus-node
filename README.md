@@ -214,6 +214,7 @@ Configuration APIs return only parameter locations and names. Secret values rema
 | `MCP_SESSION_IDLE_MS` | `900000` | Opportunistic idle expiry; accepted range 30000-86400000 ms |
 | `MCP_MAX_TOOLS` | `256` | Maximum collected upstream tools; accepted range 1-2048 |
 | `MCP_MAX_AI_RESPONSE_BYTES` | `1048576` | Maximum OpenAI-compatible response; accepted range 16384-8388608 bytes |
+| `MCP_AI_TIMEOUT_MS` | `120000` | Per-request OpenAI-compatible timeout; accepted range 10000-300000 ms |
 
 Shell and panel variables take precedence over `.env`. Web entrypoints load `.env` from the project root regardless of the caller's working directory. Reserved API, MCP, and asset prefixes cannot be used as `WEB_LOGIN_PATH`.
 
